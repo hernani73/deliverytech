@@ -78,9 +78,6 @@ docker-compose up --build
 
 ---
 
-## 👤 Autores
-
-Projeto desenvolvido por [Seu Nome] com base nas práticas da disciplina de Arquitetura de Sistemas.
 
 ---
 
