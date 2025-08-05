@@ -47,6 +47,14 @@ public class ClienteController {
                 .map(c -> new ClienteResponse(c.getId(), c.getNome(), c.getEmail(), c.getAtivo()))
                 .collect(Collectors.toList());
     }
+    @GetMapping("/clientes") // Mapeia a URL http://localhost:8080/clientes
+    public List<ClienteResponse> listarClientesNoEndpointSimples() {
+        logger.info("Acessando o endpoint simplificado /clientes");
+
+        return clienteService.listarAtivos().stream()
+                .map(c -> new ClienteResponse(c.getId(), c.getNome(), c.getEmail(), c.getAtivo()))
+                .collect(Collectors.toList());
+    }
 
     @GetMapping("/{id}")
     public ResponseEntity<ClienteResponse> buscar(@PathVariable Long id) {
