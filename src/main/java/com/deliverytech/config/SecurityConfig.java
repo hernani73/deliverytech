@@ -7,8 +7,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -26,33 +26,42 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return http
-                .csrf(csrf -> csrf.disable()) // Desabilita a proteção CSRF que não é necessária para uma API stateless
-                .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // Garante que a sessão não armazene estado
-                
-                .authorizeHttpRequests(auth -> auth
-                        // Endpoints Públicos: Acesso liberado para todos
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/health","/info","/swagger-ui.html","/swagger-ui/**", "/api-docs/**", "/h2-console/**", "/actuator/**").permitAll()
+        // Definindo uma lista de endpoints públicos que não exigem autenticação
+        final String[] PUBLIC_ENDPOINTS = {
+                "/api/auth/**",
+                "/swagger-ui.html",
+                "/swagger-ui/**",
+                "/api-docs/**",
+                "/h2-console/**",
+                "/actuator/**" // Liberando todos os endpoints do Actuator
+        };
 
-                        // Endpoints de Cliente: ADMIN pode gerenciar, CLIENTE pode se cadastrar
-                        .requestMatchers("/api/clientes","/clientes").hasAnyAuthority("ROLE_ADMIN", "ROLE_CLIENTE")
+        return http
+                .csrf(csrf -> csrf.disable()) // Desabilita CSRF para APIs stateless
+                .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.disable())) // Permite o acesso ao H2 Console
+                .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // Garante sessões stateless
+                .authorizeHttpRequests(auth -> auth
+                        // Libera o acesso aos endpoints públicos definidos acima
+                        .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+
+                        // Endpoints de Cliente
+                        .requestMatchers("/api/clientes", "/clientes").hasAnyAuthority("ROLE_ADMIN", "ROLE_CLIENTE")
                         .requestMatchers("/api/clientes/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_CLIENTE")
 
-                        // Endpoints de Pedido: Apenas CLIENTE pode criar/ver
+                        // Endpoints de Pedido
                         .requestMatchers("/api/pedidos").hasAuthority("ROLE_CLIENTE")
                         .requestMatchers("/api/pedidos/**").hasAuthority("ROLE_CLIENTE")
-                        
-                        // Endpoints de Restaurante e Produto: Apenas ADMIN pode gerenciar
+
+                        // Endpoints de Restaurante e Produto
                         .requestMatchers("/api/restaurantes").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/restaurantes/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/produtos").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/produtos/**").hasAuthority("ROLE_ADMIN")
-                        
-                        // Garante que qualquer outra requisição não listada seja bloqueada
-                        .anyRequest().authenticated() 
+
+                        // Garante que qualquer outra requisição não listada seja autenticada
+                        .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class) // Adiciona nosso filtro JWT antes do filtro padrão
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class) // Adiciona o filtro JWT
                 .build();
     }
 

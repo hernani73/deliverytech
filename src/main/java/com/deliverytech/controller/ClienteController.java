@@ -2,27 +2,33 @@ package com.deliverytech.controller;
 
 import com.deliverytech.dto.request.ClienteRequest;
 import com.deliverytech.dto.response.ClienteResponse;
+import com.deliverytech.exception.EntityNotFoundException;
 import com.deliverytech.model.Cliente;
 import com.deliverytech.service.ClienteService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import java.util.List;
-import java.util.stream.Collectors;
+import java.net.URI;
 
 @RestController
 @RequestMapping("/api/clientes")
 @RequiredArgsConstructor
+@Tag(name = "Clientes", description = "Endpoints para gerenciamento de clientes")
 public class ClienteController {
 
     private static final Logger logger = LoggerFactory.getLogger(ClienteController.class);
-
     private final ClienteService clienteService;
 
+    @Operation(summary = "Cadastra um novo cliente", description = "Cria um novo cliente no sistema.")
     @PostMapping
     public ResponseEntity<ClienteResponse> cadastrar(@Valid @RequestBody ClienteRequest request) {
         logger.info("Cadastro de cliente iniciado: {}", request.getEmail());
@@ -34,40 +40,35 @@ public class ClienteController {
                 .build();
 
         Cliente salvo = clienteService.cadastrar(cliente);
-
         logger.debug("Cliente salvo com ID {}", salvo.getId());
 
-        return ResponseEntity.ok(new ClienteResponse(salvo.getId(), salvo.getNome(), salvo.getEmail(), salvo.getAtivo()));
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{id}")
+                .buildAndExpand(salvo.getId())
+                .toUri();
+
+        return ResponseEntity.created(location).body(new ClienteResponse(salvo.getId(), salvo.getNome(), salvo.getEmail(), salvo.getAtivo()));
     }
 
+    @Operation(summary = "Lista todos os clientes ativos", description = "Retorna uma lista paginada de todos os clientes com status ativo.")
     @GetMapping
-    public List<ClienteResponse> listar() {
-        logger.info("Listando todos os clientes ativos");
-        return clienteService.listarAtivos().stream()
-                .map(c -> new ClienteResponse(c.getId(), c.getNome(), c.getEmail(), c.getAtivo()))
-                .collect(Collectors.toList());
-    }
-    @GetMapping("/clientes") // Mapeia a URL http://localhost:8080/clientes
-    public List<ClienteResponse> listarClientesNoEndpointSimples() {
-        logger.info("Acessando o endpoint simplificado /clientes");
-
-        return clienteService.listarAtivos().stream()
-                .map(c -> new ClienteResponse(c.getId(), c.getNome(), c.getEmail(), c.getAtivo()))
-                .collect(Collectors.toList());
+    public Page<ClienteResponse> listar(Pageable pageable) {
+        logger.info("Listando todos os clientes ativos de forma paginada");
+        Page<Cliente> clientesPaginados = clienteService.listarAtivos(pageable);
+        return clientesPaginados.map(c -> new ClienteResponse(c.getId(), c.getNome(), c.getEmail(), c.getAtivo()));
     }
 
+    @Operation(summary = "Busca um cliente por ID", description = "Retorna os detalhes de um cliente específico pelo seu ID.")
     @GetMapping("/{id}")
     public ResponseEntity<ClienteResponse> buscar(@PathVariable Long id) {
         logger.info("Buscando cliente com ID: {}", id);
         return clienteService.buscarPorId(id)
                 .map(c -> new ClienteResponse(c.getId(), c.getNome(), c.getEmail(), c.getAtivo()))
                 .map(ResponseEntity::ok)
-                .orElseGet(() -> {
-                    logger.warn("Cliente com ID {} não encontrado", id);
-                    return ResponseEntity.notFound().build();
-                });
+                .orElseThrow(() -> new EntityNotFoundException("Cliente", id));
     }
 
+    @Operation(summary = "Atualiza um cliente", description = "Atualiza os dados de um cliente existente a partir do seu ID.")
     @PutMapping("/{id}")
     public ResponseEntity<ClienteResponse> atualizar(@PathVariable Long id, @Valid @RequestBody ClienteRequest request) {
         logger.info("Atualizando cliente ID: {}", id);
@@ -78,22 +79,14 @@ public class ClienteController {
                 .build();
 
         Cliente salvo = clienteService.atualizar(id, atualizado);
-
         return ResponseEntity.ok(new ClienteResponse(salvo.getId(), salvo.getNome(), salvo.getEmail(), salvo.getAtivo()));
     }
 
+    @Operation(summary = "Ativa ou desativa um cliente", description = "Altera o status de um cliente (ativo/inativo) a partir do seu ID.")
     @PatchMapping("/{id}/status")
     public ResponseEntity<Void> ativarDesativar(@PathVariable Long id) {
         logger.info("Alterando status do cliente ID: {}", id);
         clienteService.ativarDesativar(id);
         return ResponseEntity.noContent().build();
-    }
-
-    @GetMapping("/status")
-    public ResponseEntity<String> status() {
-        logger.debug("Status endpoint acessado");
-        int cpuCores = Runtime.getRuntime().availableProcessors();
-        logger.info("CPU cores disponíveis: {}", cpuCores);
-        return ResponseEntity.ok("API está online");
     }
 }
