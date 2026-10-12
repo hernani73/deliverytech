@@ -81,4 +81,4 @@ docker-compose up --build
 
 ## 📬 Contato
 
-[[LinkedIn](https://www.linkedin.com/in/luiz-felipe-domingos-martinez-87a61b357/)] - [[GitHub](https://github.com/FelipeDMartinez)]
+[[LinkedIn](https://www.linkedin.com/in/hernani-godinho-de-souza-6a94bab/)] - [[GitHub](https://github.com/hernani73)]
