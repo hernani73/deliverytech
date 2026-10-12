@@ -23,7 +23,7 @@ public class HealthController {
         return new AppInfo(
             "Delivery Tech API",
             "1.0.0",
-            "Felipe Martinez", // Coloquei seu nome aqui, pode alterar!
+            "Hernani Godinho de Souza",
             "JDK 21",
             "Spring Boot 3.2.x"
         );
