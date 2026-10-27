@@ -16,10 +16,12 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*") // 🌟 Resolve o bloqueio de CORS com o React localmente
 @Tag(name = "Autenticação", description = "Endpoints para registro e login de usuários")
 public class AuthController {
 
@@ -30,9 +32,9 @@ public class AuthController {
 
     @Operation(summary = "Registra um novo usuário", description = "Cria um novo usuário (cliente ou outro tipo) e retorna um token JWT para acesso.")
     @PostMapping("/register")
-    public ResponseEntity<String> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
         if (usuarioRepository.findByEmail(request.getEmail()).isPresent()) {
-            return ResponseEntity.badRequest().body("Email já cadastrado");
+            return ResponseEntity.badRequest().body(Map.of("message", "Email já cadastrado"));
         }
 
         Usuario usuario = Usuario.builder()
@@ -45,17 +47,38 @@ public class AuthController {
                 .build();
 
         usuarioRepository.save(usuario);
-        String token = jwtUtil.generateToken(User.withUsername(usuario.getEmail()).password(usuario.getSenha()).authorities("ROLE_" + usuario.getRole().name()).build(), usuario);
-        return ResponseEntity.ok(token);
+        
+        String token = jwtUtil.generateToken(
+            User.withUsername(usuario.getEmail())
+                .password(usuario.getSenha())
+                .authorities("ROLE_" + usuario.getRole().name())
+                .build(), 
+            usuario
+        );
+        
+        // Retorna um JSON estruturado para o React mapear facilmente
+        return ResponseEntity.ok(Map.of("token", token));
     }
 
     @Operation(summary = "Autentica um usuário", description = "Autentica um usuário com email e senha e retorna um token JWT válido.")
     @PostMapping("/login")
-    public ResponseEntity<String> login(@Valid @RequestBody LoginRequest request) {
-        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(), request.getSenha()));
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
+        authenticationManager.authenticate(
+            new UsernamePasswordAuthenticationToken(request.getEmail(), request.getSenha())
+        );
+        
         Usuario usuario = usuarioRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
-        String token = jwtUtil.generateToken(User.withUsername(usuario.getEmail()).password(usuario.getSenha()).authorities("ROLE_" + usuario.getRole().name()).build(), usuario);
-        return ResponseEntity.ok(token);
+                
+        String token = jwtUtil.generateToken(
+            User.withUsername(usuario.getEmail())
+                .password(usuario.getSenha())
+                .authorities("ROLE_" + usuario.getRole().name())
+                .build(), 
+            usuario
+        );
+        
+        // Retorna um JSON estruturado para o React mapear facilmente
+        return ResponseEntity.ok(Map.of("token", token));
     }
 }
